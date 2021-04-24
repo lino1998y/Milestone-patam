@@ -7,6 +7,8 @@ public class SimpleAnomalyDetector implements TimeSeriesAnomalyDetector {
 
     @Override
     public void learnNormal(TimeSeries ts) {
+
+
     }
 
 
