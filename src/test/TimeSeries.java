@@ -16,11 +16,10 @@ public class TimeSeries {
         this.myCsvName = csvFileName;
         this.pathOfFile = Paths.get(this.myCsvName);
         this.readCsvFile();
-
     }
 
     public void readCsvFile() {
-        String line ;
+        String line;
         String splitBy = ",";
 
         try {
@@ -36,9 +35,9 @@ public class TimeSeries {
             // go over the numbers in each column
             line = br.readLine();
             while (line != null) {
-                 value = line.split(splitBy);
+                value = line.split(splitBy);
                 for (int j = 0; j < value.length; j++) {
-                   cols[j].getFloats().add(Float.parseFloat(value[j]));
+                    cols[j].getFloats().add(Float.parseFloat(value[j]));
                 }
                 line = br.readLine();
             }
@@ -49,6 +48,10 @@ public class TimeSeries {
         }
     }
 
+
+    public Columns[] getCols() {
+        return cols;
+    }
 
     public class Columns {
         private String name;// A B
@@ -73,6 +76,7 @@ public class TimeSeries {
 
         public ArrayList<Float> getFloats() {
             return this.floats;
+            
         }
     }
 }
