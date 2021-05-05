@@ -6,7 +6,6 @@ import java.util.List;
 public class SimpleAnomalyDetector implements TimeSeriesAnomalyDetector {
 
     private ArrayList<CorrelatedFeatures> features = new ArrayList<>();
-    Point[] pointsArray;
     double constNumber = 0.9;
 
     @Override
@@ -19,6 +18,8 @@ public class SimpleAnomalyDetector implements TimeSeriesAnomalyDetector {
             float max = 0;
             floatMax1 = null;
             floatMax2 = null;
+
+            // find max correlation for each column
             for (int j = i + 1; j < col.length; j++) {
 
                 float[] floatArrayA = this.convertFloatListToFloatArray(col[i].getFloats());
@@ -35,23 +36,28 @@ public class SimpleAnomalyDetector implements TimeSeriesAnomalyDetector {
 
             if (floatMax1 != null && floatMax2 != null) {
 
-                pointsArray = new Point[floatMax1.getFloats().size()];
-                for (int j = 0; j < floatMax1.getFloats().size(); j++) {
-                    Point p = new Point(floatMax2.getFloats().get(j), floatMax1.getFloats().get(j));
-                    this.pointsArray[j] = p;
-                }
+                // find the points from the correlation columns
+                Point[] pointsArray = featuresPoints(ts, floatMax1.getName(), floatMax2.getName());
 
+                // calculate linear_reg
                 Line l = StatLib.linear_reg(pointsArray);
-                float maxDev = 0;
-                for (int j = 0; j < pointsArray.length; j++) {
-                    float dev = Math.abs(StatLib.dev(pointsArray[j], l));
-                    if (dev > maxDev) {
-                        maxDev = dev;
-                    }
-                }
+
+                // calculate max dev
+                float maxDev = findMaxThreshold(pointsArray, l);
                 features.add(new CorrelatedFeatures(floatMax1.getName(), floatMax2.getName(), max, l, maxDev * 1.1f));
             }
         }
+    }
+
+    private float findMaxThreshold(Point[] points, Line line) {
+        float maxDev = 0;
+        for (int j = 0; j < points.length; j++) {
+            float dev = Math.abs(StatLib.dev(points[j], line));
+            if (dev > maxDev) {
+                maxDev = dev;
+            }
+        }
+        return maxDev;
     }
 
     public float[] convertFloatListToFloatArray(ArrayList<Float> floatArrayList) {
@@ -64,14 +70,11 @@ public class SimpleAnomalyDetector implements TimeSeriesAnomalyDetector {
     }
 
 
-    private Point[] featuresPoints(TimeSeries ts, CorrelatedFeatures f) {
+    private Point[] featuresPoints(TimeSeries ts, String columnNameA, String columnNameB) {
         int index1 = 0, index2 = 0;
-        String fet1, fet2;
-        fet1 = f.feature1;
-        fet2 = f.feature2;
         for (int i = 0; i < ts.getCols().length; i++) {
-            int s = fet1.compareTo(ts.getCols()[i].getName());
-            int z = fet2.compareTo(ts.getCols()[i].getName());
+            int s = columnNameA.compareTo(ts.getCols()[i].getName());
+            int z = columnNameB.compareTo(ts.getCols()[i].getName());
             if (s == 0) {
                 index1 = i;
             }
@@ -83,7 +86,7 @@ public class SimpleAnomalyDetector implements TimeSeriesAnomalyDetector {
         int pointsSize = ts.getCols()[0].getFloats().size();
         Point[] newPointsArray = new Point[pointsSize];
         for (int j = 0; j < pointsSize; j++) {
-            Point p = new Point(ts.getCols()[index2].getFloats().get(j), ts.getCols()[index1].getFloats().get(j));
+            Point p = new Point(ts.getCols()[index1].getFloats().get(j), ts.getCols()[index2].getFloats().get(j));
             newPointsArray[j] = p;
         }
 
@@ -93,17 +96,14 @@ public class SimpleAnomalyDetector implements TimeSeriesAnomalyDetector {
     @Override
     public List<AnomalyReport> detect(TimeSeries ts) {
         ArrayList<AnomalyReport> reports = new ArrayList<>();
-        //for each 2 correlated features
         for (CorrelatedFeatures feature : features) {
-            //build the point array
-            Point[] points = featuresPoints(ts, feature);
-            //for every point
+            Point[] points = featuresPoints(ts, feature.feature1, feature.feature2);
+
             for (int i = 0; i < points.length; ++i) {
                 float dev = StatLib.dev(points[i], feature.lin_reg);
 
-                //check if that point's distance exceeds the threshold
+
                 if (dev > feature.threshold) {
-                    //if so, add it to the report list
                     reports.add(new AnomalyReport(feature.feature1 + "-" + feature.feature2, i + 1));
                 }
             }
